@@ -1,0 +1,28 @@
+name: fretline
+description: Fretline tablet player — note highway for guitar lessons.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.0  # Flutter 3.38+ (file_picker 13)
+
+dependencies:
+  flutter:
+    sdk: flutter
+  archive: ^4.5.0
+  just_audio: ^0.10.5
+  file_picker: ^13.1.0
+  path_provider: ^2.1.6
+  shared_preferences: ^2.5.3
+  http: ^1.6.0
+  mobile_scanner: ^7.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

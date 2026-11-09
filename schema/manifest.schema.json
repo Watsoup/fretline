@@ -1,0 +1,102 @@
+{
+  "properties": {
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "description": "Stable id = first 16 hex chars of source_hash",
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "artist": {
+      "default": "",
+      "title": "Artist",
+      "type": "string"
+    },
+    "duration": {
+      "title": "Duration",
+      "type": "number"
+    },
+    "bpm": {
+      "title": "Bpm",
+      "type": "number"
+    },
+    "key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Key"
+    },
+    "tuning": {
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "title": "Tuning",
+      "type": "array"
+    },
+    "capo": {
+      "default": 0,
+      "maximum": 12,
+      "minimum": 0,
+      "title": "Capo",
+      "type": "integer"
+    },
+    "source_hash": {
+      "description": "sha256 of the original audio file",
+      "title": "Source Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "ai_draft": {
+      "default": true,
+      "description": "True until a human checked the tab",
+      "title": "Ai Draft",
+      "type": "boolean"
+    },
+    "backing_stem": {
+      "default": "stems/backing.opus",
+      "title": "Backing Stem",
+      "type": "string"
+    },
+    "cover": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional image path inside the zip",
+      "title": "Cover"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "duration",
+    "bpm",
+    "source_hash",
+    "created_at"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

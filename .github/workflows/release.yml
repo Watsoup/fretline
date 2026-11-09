@@ -1,0 +1,106 @@
+# Release: push a tag like v1.2.3
+#   -> signed APK (versionName 1.2.3, versionCode = run number)
+#   -> Flutter web player
+#   -> GitHub Release with the APK
+#   -> download page + APK + web player uploaded to the website over FTP
+#
+# Secrets:   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD,
+#            FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
+# Variables: FTP_DIR       folder on the FTP server, ending in "/"   (default "./")
+#            SITE_PATH     URL path where that folder is served, "/" or "/fretline/"   (default "/")
+#            FTP_PROTOCOL  ftps | ftp | ftps-legacy   (default ftps)
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    env:
+      SITE_PATH: ${{ vars.SITE_PATH || '/' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version from tag
+        id: v
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag must look like v1.2.3, got $GITHUB_REF_NAME"; exit 1; }
+          [[ "$SITE_PATH" == /*/ || "$SITE_PATH" == / ]] || { echo "::error::SITE_PATH must start and end with /"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "build=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.9
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Release keystore
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KS" ] || { echo "::error::secret ANDROID_KEYSTORE_BASE64 is missing"; exit 1; }
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build APK
+        env:
+          FRETLINE_KEYSTORE: ${{ runner.temp }}/release.jks
+          FRETLINE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          FRETLINE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          FRETLINE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: flutter build apk --release --build-name=${{ steps.v.outputs.version }} --build-number=${{ steps.v.outputs.build }}
+
+      - name: Build web player
+        run: flutter build web --release --base-href "${SITE_PATH}play/"
+
+      - name: Assemble site
+        run: |
+          V=${{ steps.v.outputs.version }}
+          OUT="$GITHUB_WORKSPACE/site-out"
+          mkdir -p "$OUT"
+          cp build/app/outputs/flutter-apk/app-release.apk "$OUT/fretline-$V.apk"
+          cp "$OUT/fretline-$V.apk" "$OUT/fretline-latest.apk"
+          cp -r build/web "$OUT/play"
+          sed -e "s/__VERSION__/$V/g" -e "s/__DATE__/$(date -u +%Y-%m-%d)/g" -e "s/__APK__/fretline-$V.apk/g" \
+            ../site/index.html > "$OUT/index.html"
+          printf '{"version":"%s","build":%s,"apk":"fretline-%s.apk"}\n' "$V" "${{ steps.v.outputs.build }}" "$V" > "$OUT/version.json"
+          ls -la "$OUT"
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$GITHUB_WORKSPACE/site-out/fretline-${{ steps.v.outputs.version }}.apk" --generate-notes --title "Fretline ${{ steps.v.outputs.version }}"
+
+      - name: Upload to website
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          local-dir: ./site-out/
+          server-dir: ${{ vars.FTP_DIR || './' }}

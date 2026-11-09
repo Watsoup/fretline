@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fretline</title>
+<style>
+  :root {
+    --bg: #14161b; --panel: #1d2027; --line: #2c313b; --text: #e8eaee; --dim: #8b93a1;
+    --accent: #f5a524; --ok: #3ccf8e; --bad: #ff5d5d;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+  header h1 span { color: var(--accent); }
+  #status { font-size: 13px; color: var(--dim); }
+  #status b { color: var(--text); font-weight: 600; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 28px 60px; display: grid; gap: 28px; }
+  #drop { border: 2px dashed var(--line); border-radius: 14px; padding: 36px; text-align: center; cursor: pointer; transition: .15s; }
+  #drop.over { border-color: var(--accent); background: #f5a5240d; }
+  #drop p { margin: 6px 0; color: var(--dim); }
+  #drop strong { font-size: 18px; color: var(--text); }
+  .opts { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .opts label { font-size: 13px; color: var(--dim); display: flex; flex-direction: column; gap: 4px; text-align: left; }
+  input, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 14px; }
+  input[type=number] { width: 70px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 0 0 10px; }
+  .list { display: grid; gap: 8px; }
+  .row { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; }
+  .row .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .s { font-size: 13px; color: var(--dim); }
+  .row .err { grid-column: 1 / -1; color: var(--bad); font-size: 12px; font-family: ui-monospace, monospace; white-space: pre-wrap; }
+  .bar { grid-column: 1 / -1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+  .done .bar i { background: var(--ok); }
+  .failed .bar i { background: var(--bad); }
+  .btns { display: flex; gap: 6px; }
+  button { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #14161b; font-weight: 600; }
+  button.primary:hover { background: transparent; color: var(--accent); }
+  .hdr { display: flex; align-items: center; gap: 14px; }
+  .tag { font-size: 11px; border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; margin-left: 6px; color: var(--dim); font-weight: 400; }
+  .empty { color: var(--dim); font-size: 14px; padding: 8px 0; }
+  #pair { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; gap: 20px; align-items: center; }
+  #pair img { width: 168px; height: 168px; border-radius: 8px; background: #fff; flex: none; }
+  #pair h2 { margin-bottom: 6px; }
+  #pair p { margin: 4px 0; font-size: 14px; color: var(--dim); }
+  #pair code { color: var(--text); font-size: 15px; }
+  @media (max-width: 600px) { #pair { flex-direction: column; text-align: center; } }
+  #offline { display: none; background: #ff5d5d22; border: 1px solid var(--bad); border-radius: 10px; padding: 12px 16px; font-size: 14px; }
+  @media (max-width: 600px) { main, header { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fret<span>line</span></h1>
+  <div class="hdr"><div id="status">connecting…</div><button class="primary" onclick="learn()">Learn ▸</button></div>
+</header>
+<main>
+  <div id="offline">Backend not reachable. Start it with <code>uv run fretline serve</code> in <code>backend/</code>.</div>
+
+  <section>
+    <div id="drop">
+      <strong>Drop a song here</strong>
+      <p>MP3, FLAC, WAV, OGG, M4A — or click to choose. Drop a <code>.fretpack</code> to add it to the library.</p>
+      <input id="file" type="file" accept=".mp3,.flac,.wav,.ogg,.m4a,.aac,.opus,.fretpack" multiple hidden>
+      <div class="opts" onclick="event.stopPropagation()">
+        <label>Title (optional)<input id="title" placeholder="from file tags"></label>
+        <label>Artist (optional)<input id="artist" placeholder="from file tags"></label>
+        <label>Capo<input id="capo" type="number" min="0" max="12" value="0"></label>
+        <label>Tuning
+          <select id="tuning">
+            <option value="">Standard (EADGBE)</option>
+            <option value="38,45,50,55,59,64">Drop D (DADGBE)</option>
+            <option value="39,44,49,54,58,63">Half step down (Eb)</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Processing</h2>
+    <div id="jobs" class="list"><div class="empty">Nothing yet.</div></div>
+  </section>
+
+  <section id="pair">
+    <img id="qr" alt="Pairing QR code">
+    <div>
+      <h2>Connect a tablet</h2>
+      <p><b>Android:</b> in Fretline, tap <i>Get songs from PC</i> → <i>Scan QR</i>.</p>
+      <p><b>iPhone / iPad:</b> point the camera at the code to open the web player.</p>
+      <p>Or type <code id="pairurl"></code> — same Wi-Fi only.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Library</h2>
+    <div id="pkgs" class="list"><div class="empty">No songs yet.</div></div>
+  </section>
+</main>
+
+<script>
+const API = location.protocol.startsWith("http") ? "" : "http://127.0.0.1:8765";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+async function api(path, opts) {
+  const r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.status === 204 ? null : r.json();
+}
+
+// ------------------------------------------------------------ upload
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+$("file").onchange = (e) => { [...e.target.files].forEach(upload); e.target.value = ""; };
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); [...e.dataTransfer.files].forEach(upload); };
+
+async function upload(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    if (file.name.toLowerCase().endsWith(".fretpack")) {
+      await api("/packages", { method: "POST", body: fd });
+    } else {
+      if ($("title").value) fd.append("title", $("title").value);
+      if ($("artist").value) fd.append("artist", $("artist").value);
+      fd.append("capo", $("capo").value || "0");
+      if ($("tuning").value) fd.append("tuning", $("tuning").value);
+      await api("/jobs", { method: "POST", body: fd });
+      $("title").value = $("artist").value = "";
+    }
+  } catch (e) { alert(`${file.name}: ${e.message}`); }
+  refresh();
+}
+
+// ------------------------------------------------------------ learn
+// The practice player (Flutter web build) is served by the backend at /app/.
+// It links back here with its "Add songs" button.
+const PLAYER = (API || location.origin) + "/app/";
+async function learn(id) {
+  const url = PLAYER + (id ? `?song=${encodeURIComponent(id)}` : "");
+  const r = await fetch(PLAYER, { method: "HEAD" }).catch(() => null);
+  if (!r || !r.ok) {
+    alert("The practice player isn't built yet. Run in app/:\n\n  flutter build web --base-href /app/\n\nthen restart the backend.");
+    return;
+  }
+  location.href = url;
+}
+
+// ------------------------------------------------------------ lists
+async function cancelJob(id) { await api(`/jobs/${id}/cancel`, { method: "POST" }).catch((e) => alert(e.message)); refresh(); }
+async function forgetJob(id) { await api(`/jobs/${id}`, { method: "DELETE" }).catch(() => {}); refresh(); }
+async function deletePkg(id, title) {
+  if (!confirm(`Delete "${title}" from the library?`)) return;
+  await api(`/packages/${id}`, { method: "DELETE" }).catch((e) => alert(e.message));
+  refresh();
+}
+
+function renderJobs(jobs) {
+  if (!jobs.length) { $("jobs").innerHTML = `<div class="empty">Nothing yet.</div>`; return; }
+  $("jobs").innerHTML = jobs.map((j) => {
+    const active = j.state === "queued" || j.state === "running";
+    const pct = Math.round(j.progress * 100);
+    const label = j.state === "running" ? `${esc(j.label)} · ${pct}%` : esc(j.state);
+    return `<div class="row ${j.state}">
+      <div><div class="t">${esc(j.filename)}</div><div class="s">${label}</div></div>
+      <div class="btns">${active
+        ? `<button onclick="cancelJob('${j.id}')">Cancel</button>`
+        : `<button onclick="forgetJob('${j.id}')">Clear</button>`}</div>
+      <div class="bar"><i style="width:${j.state === "failed" ? 100 : pct}%"></i></div>
+      ${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+function renderPkgs(pkgs) {
+  if (!pkgs.length) { $("pkgs").innerHTML = `<div class="empty">No songs yet.</div>`; return; }
+  $("pkgs").innerHTML = pkgs.map((p) => `<div class="row">
+      <div>
+        <div class="t">${esc(p.title)}${p.ai_draft ? `<span class="tag">AI draft</span>` : ""}</div>
+        <div class="s">${esc(p.artist || "Unknown artist")} · ${fmtTime(p.duration)} · ${Math.round(p.bpm)} BPM${p.key ? ` · ${esc(p.key)}` : ""}${p.capo ? ` · capo ${p.capo}` : ""} · ${(p.size / 1e6).toFixed(1)} MB</div>
+      </div>
+      <div class="btns">
+        <button class="primary" onclick="learn('${p.id}')">Practice</button>
+        <a href="${API}${p.url}" download><button>Export</button></a>
+        <button onclick="deletePkg('${p.id}', '${esc(p.title).replace(/'/g, "\\'")}')">Delete</button>
+      </div>
+    </div>`).join("");
+}
+
+let lastPairUrl = null;
+function renderPair(lan) {
+  const url = lan ? lan.pair_url : null;
+  $("pair").style.display = url ? "flex" : "none";
+  if (url && url !== lastPairUrl) {
+    $("qr").src = `${API}/lan/qr.svg?u=${encodeURIComponent(url)}`;
+    $("pairurl").textContent = url;
+  }
+  lastPairUrl = url;
+}
+
+let lastPkgKey = "";
+async function refresh() {
+  try {
+    const [health, jobs, pkgs] = await Promise.all([api("/health"), api("/jobs"), api("/packages")]);
+    $("offline").style.display = "none";
+    $("status").innerHTML = health.lan
+      ? `Tablets: <b>${esc(health.lan.address)}:${health.lan.port}</b>`
+      : "No network: tablet sync unavailable";
+    renderPair(health.lan);
+    renderJobs(jobs);
+    const key = JSON.stringify(pkgs.map((p) => [p.id, p.size]));
+    if (key !== lastPkgKey) { renderPkgs(pkgs); lastPkgKey = key; }
+    return jobs.some((j) => j.state === "queued" || j.state === "running");
+  } catch {
+    $("offline").style.display = "block";
+    $("status").textContent = "offline";
+    return false;
+  }
+}
+
+(async function loop() {
+  const busy = await refresh();
+  setTimeout(loop, busy ? 500 : 2000);
+})();
+</script>
+</body>
+</html>

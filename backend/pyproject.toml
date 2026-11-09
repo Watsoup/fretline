@@ -1,0 +1,33 @@
+[project]
+name = "fretline"
+version = "0.1.0"
+description = "Fretline PC backend: turns a song into a .fretpack lesson"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+    "pydantic>=2.8",
+    "segno>=1.6",
+]
+
+[project.optional-dependencies]
+# Add your model deps here when you implement the stages, e.g.:
+#   torch, demucs, basic-pitch, beat_this, librosa ...
+ml = []
+
+[project.scripts]
+fretline = "fretline.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fretline"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

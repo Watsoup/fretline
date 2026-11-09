@@ -1,0 +1,462 @@
+{
+  "$defs": {
+    "Chord": {
+      "properties": {
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "frets": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "title": "Frets",
+          "type": "array"
+        },
+        "fingers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Finger per string (0 = open/none, 1-4, 5 = thumb)",
+          "title": "Fingers"
+        },
+        "easy_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when this is a stepping-stone voicing of a harder chord",
+          "title": "Easy Of"
+        }
+      },
+      "required": [
+        "t",
+        "name",
+        "frets"
+      ],
+      "title": "Chord",
+      "type": "object"
+    },
+    "Drill": {
+      "description": "What the player app runs when this skill is practised.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "shape",
+            "change",
+            "strum",
+            "loop",
+            "play_along"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "chords": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Chords",
+          "type": "array"
+        },
+        "pattern": {
+          "description": "Strum pattern on 8th notes, null = skip",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StrumDir"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Pattern",
+          "type": "array"
+        },
+        "loop_start": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Loop Start"
+        },
+        "loop_end": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Loop End"
+        },
+        "target_bpm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Bpm"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. 60 for one-minute changes",
+          "title": "Duration S"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short human instruction",
+          "title": "Text"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Drill",
+      "type": "object"
+    },
+    "Note": {
+      "properties": {
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "dur": {
+          "title": "Dur",
+          "type": "number"
+        },
+        "string": {
+          "maximum": 6,
+          "minimum": 1,
+          "title": "String",
+          "type": "integer"
+        },
+        "fret": {
+          "maximum": 24,
+          "minimum": 0,
+          "title": "Fret",
+          "type": "integer"
+        },
+        "pitch": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MIDI pitch (before capo), informative",
+          "title": "Pitch"
+        },
+        "tech": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Technique"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tech_to_fret": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target fret for slides / bends (in semitones for bends)",
+          "title": "Tech To Fret"
+        }
+      },
+      "required": [
+        "t",
+        "dur",
+        "string",
+        "fret"
+      ],
+      "title": "Note",
+      "type": "object"
+    },
+    "Part": {
+      "properties": {
+        "id": {
+          "enum": [
+            "lead",
+            "rhythm"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "stem": {
+          "description": "Path inside the zip, e.g. stems/guitar_rhythm.opus",
+          "title": "Stem",
+          "type": "string"
+        },
+        "chords": {
+          "items": {
+            "$ref": "#/$defs/Chord"
+          },
+          "title": "Chords",
+          "type": "array"
+        },
+        "strums": {
+          "items": {
+            "$ref": "#/$defs/Strum"
+          },
+          "title": "Strums",
+          "type": "array"
+        },
+        "notes": {
+          "items": {
+            "$ref": "#/$defs/Note"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "skills": {
+          "items": {
+            "$ref": "#/$defs/Skill"
+          },
+          "title": "Skills",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "stem"
+      ],
+      "title": "Part",
+      "type": "object"
+    },
+    "Section": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "start",
+        "end"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "Skill": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SkillType"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "needs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Needs",
+          "type": "array"
+        },
+        "occurs": {
+          "description": "Start times in the song",
+          "items": {
+            "type": "number"
+          },
+          "title": "Occurs",
+          "type": "array"
+        },
+        "weight": {
+          "default": 1.0,
+          "description": "How often it occurs, for mastery %",
+          "title": "Weight",
+          "type": "number"
+        },
+        "drill": {
+          "$ref": "#/$defs/Drill"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name",
+        "drill"
+      ],
+      "title": "Skill",
+      "type": "object"
+    },
+    "SkillType": {
+      "enum": [
+        "shape",
+        "change",
+        "strum",
+        "riff",
+        "section",
+        "song"
+      ],
+      "title": "SkillType",
+      "type": "string"
+    },
+    "Strum": {
+      "properties": {
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "dir": {
+          "$ref": "#/$defs/StrumDir"
+        },
+        "muted": {
+          "default": false,
+          "title": "Muted",
+          "type": "boolean"
+        },
+        "accent": {
+          "default": false,
+          "title": "Accent",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "t",
+        "dir"
+      ],
+      "title": "Strum",
+      "type": "object"
+    },
+    "StrumDir": {
+      "enum": [
+        "down",
+        "up"
+      ],
+      "title": "StrumDir",
+      "type": "string"
+    },
+    "Technique": {
+      "enum": [
+        "slide",
+        "bend",
+        "hammer_on",
+        "pull_off",
+        "harmonic",
+        "vibrato",
+        "palm_mute"
+      ],
+      "title": "Technique",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "beats": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Beats",
+      "type": "array"
+    },
+    "downbeats": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Downbeats",
+      "type": "array"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/Section"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "parts": {
+      "items": {
+        "$ref": "#/$defs/Part"
+      },
+      "title": "Parts",
+      "type": "array"
+    }
+  },
+  "required": [
+    "beats",
+    "parts"
+  ],
+  "title": "Lesson",
+  "type": "object"
+}
